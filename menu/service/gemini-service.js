@@ -1,31 +1,34 @@
 // --- Configuración Exacta del CURL ---
 
 // Importar el logger
-const logger = require('../log/logger');
-const path = require('path');
+const logger = require("../log/logger");
+const path = require("path");
 
 // 1. URL (tal como en tu curl)
-const URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+const URL =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
 // 2. La API Key - Se obtiene de variable de entorno por seguridad
 // Configura la variable de entorno GEMINI_API_KEY antes de ejecutar el plugin
 // Ejemplo: export GEMINI_API_KEY="tu-api-key-aqui"
 function getApiKey() {
-  const configPath = path.resolve(__dirname, '../../config.json');
+  const configPath = path.resolve(__dirname, "../../config.json");
   let config;
 
   try {
     config = require(configPath);
   } catch (error) {
     const errorMsg = `Error al cargar config.json. Asegúrate de que el archivo existe en la raíz del plugin y tiene el formato correcto.\n\nRuta esperada: ${configPath}\n\nError: ${error.message}`;
-    logger.log(errorMsg, 'ERROR');
+    logger.log(errorMsg, "ERROR");
     throw new Error(errorMsg);
   }
 
   const apiKey = config.GEMINI_API_KEY;
   if (!apiKey) {
-    const errorMsg = 'GEMINI_API_KEY no está configurada en config.json. Por favor, asegúrate de que el archivo config.json contiene la clave GEMINI_API_KEY con tu API key de Google AI Studio.\n\nRuta del archivo: ' + configPath;
-    logger.log(errorMsg, 'ERROR');
+    const errorMsg =
+      "GEMINI_API_KEY no está configurada en config.json. Por favor, asegúrate de que el archivo config.json contiene la clave GEMINI_API_KEY con tu API key de Google AI Studio.\n\nRuta del archivo: " +
+      configPath;
+    logger.log(errorMsg, "ERROR");
     throw new Error(errorMsg);
   }
   return apiKey;
@@ -34,24 +37,24 @@ function getApiKey() {
 async function run(dataFieldsString = null) {
   const logs = [];
   const startTime = Date.now();
-  
+
   try {
     // Validar API key al inicio de la ejecución
     const API_KEY = getApiKey();
-    logger.log('API Key validada correctamente');
-    logs.push('API Key validada');
+    logger.log("API Key validada correctamente");
+    logs.push("API Key validada");
 
-    logger.log('Gemini Service (usando fetch) ejecutado correctamente');
+    logger.log("Gemini Service (usando fetch) ejecutado correctamente");
     logger.log(`Llamando a: ${URL}`);
-    logs.push('Gemini Service iniciado');
+    logs.push("Gemini Service iniciado");
     logs.push(`URL: ${URL}`);
-    
-    var promptText = '';
-    
+
+    var promptText = "";
+
     const systemPrompt = `Act as a Systematic Derivation Engine based on the methodology described in "Systematic derivation of class diagrams from communication-oriented business process models" (Gonzalez et al., 2011). Your task is to:
 
     1.  **Parse the provided BPMN 2.0 XML content.**
-    2.  **Extract message structures** stored as JSON strings within \`<bpmn:documentation>\` tags associated with relevant BPMN elements (likely \`<bpmn:messageFlow>\` or specific task types like \`<bpmn:sendTask>\`, \`<bpmn:receiveTask>\`). The JSON string typically starts after a prefix like \`dataFields:\`.
+    2.  **Extract message structures** stored as JSON strings within \`<bpmn:documentation>\` tags associated with relevant BPMN elements (likely \`<bpmn:messageFlow>\` or specific task types like \`<bpmn:IntermediateThrowEvent>\`, \`<bpmn:receiveTask>\`). The JSON string typically starts after a prefix like \`dataFields:\`.
     3.  **Identify the processing order** of these messages based on the sequence flow (\`<bpmn:sequenceFlow>\`) connections in the BPMN diagram (Rule R3). If the order is ambiguous, process them as encountered.
     4.  **Apply the following Derivation Rules (R1-R26)** incrementally to each extracted message structure, in the determined order, to build a UML Class Diagram.
     5.  **Generate a single, complete UML Class Diagram definition** using **PlantUML** syntax as the final output.
@@ -89,7 +92,7 @@ async function run(dataFieldsString = null) {
 
     **XML EXTRACTION HINTS:**
     
-    * Look for \`<bpmn:documentation>\` tags, likely nested within \`<bpmn:messageFlow>\`, \`<bpmn:sendTask>\`, or \`<bpmn:receiveTask>\`.
+    * Look for \`<bpmn:documentation>\` tags, likely nested within \`<bpmn:messageFlow>\`, \`<bpmn:IntermediateThrowEvent>\`, or \`<bpmn:receiveTask>\`.
     * The content might start with a prefix like \`dataFields:\`. Parse the JSON that follows this prefix.
     * The relevant part for derivation is the \`messageStructure\` object within the parsed JSON. Pay attention to \`messageStructure.name\` and \`messageStructure.children\`.
     * Check the \`extends\` property (e.g., \`"extends": true\`) on the *first* child of type \`Reference Field\` within \`messageStructure.children\` to determine if R2/R23 applies.
@@ -107,43 +110,45 @@ async function run(dataFieldsString = null) {
     
     
     **INPUT BPMN XML CONTENT:**`;
-    
+
     if (dataFieldsString) {
       // Construir el prompt completo con las instrucciones y el contenido BPMN
-      promptText = systemPrompt + '\n\n' + dataFieldsString;
+      promptText = systemPrompt + "\n\n" + dataFieldsString;
       const dataLength = dataFieldsString.length;
-      logger.log(`Enviando BPMN XML a Gemini para derivar diagrama UML, longitud: ${dataLength}`);
+      logger.log(
+        `Enviando BPMN XML a Gemini para derivar diagrama UML, longitud: ${dataLength}`,
+      );
       logs.push(`BPMN XML preparado: ${dataLength} caracteres`);
     } else {
-      promptText = systemPrompt + '\n\n[No se proporcionó contenido BPMN XML]';
-      logger.log('Advertencia: No se proporcionó dataFieldsString', 'WARN');
-      logs.push('Advertencia: No se proporcionó dataFieldsString');
+      promptText = systemPrompt + "\n\n[No se proporcionó contenido BPMN XML]";
+      logger.log("Advertencia: No se proporcionó dataFieldsString", "WARN");
+      logs.push("Advertencia: No se proporcionó dataFieldsString");
     }
-    
+
     // 3. El "body" o "-d" (tal como en tu curl)
     const payload = {
       contents: [
         {
           parts: [
             {
-              text: promptText
-            }
-          ]
-        }
-      ]
+              text: promptText,
+            },
+          ],
+        },
+      ],
     };
-    
+
     // 4. La llamada fetch (POST, con los headers y body de tu curl)
-    logger.log('Enviando petición a Gemini API...');
-    logs.push('Enviando petición a Gemini API');
-    
+    logger.log("Enviando petición a Gemini API...");
+    logs.push("Enviando petición a Gemini API");
+
     const response = await fetch(URL, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'X-goog-api-key': API_KEY // Usando el header de tu curl
+        "Content-Type": "application/json",
+        "X-goog-api-key": API_KEY, // Usando el header de tu curl
       },
-      body: JSON.stringify(payload) // Convirtiendo el body a JSON string
+      body: JSON.stringify(payload), // Convirtiendo el body a JSON string
     });
 
     logger.log(`Respuesta recibida: ${response.status} ${response.statusText}`);
@@ -152,14 +157,19 @@ async function run(dataFieldsString = null) {
     // 5. Manejo de errores
     if (!response.ok) {
       if (response.status === 429) {
-        logger.log("⏳ Demasiadas peticiones. Has superado el límite de velocidad de la API gratuita (15 peticiones/min).", 'WARN');
-        throw new Error("Has superado el límite de velocidad de la API gratuita (15 peticiones/min). Por favor, espera un minuto e inténtalo de nuevo.");
+        logger.log(
+          "⏳ Demasiadas peticiones. Has superado el límite de velocidad de la API gratuita (15 peticiones/min).",
+          "WARN",
+        );
+        throw new Error(
+          "Has superado el límite de velocidad de la API gratuita (15 peticiones/min). Por favor, espera un minuto e inténtalo de nuevo.",
+        );
       }
       const errorData = await response.json();
-      const errorMessage = `Error ${response.status}: ${errorData.error?.message || 'Error desconocido'}`;
-      logger.log(errorMessage, 'ERROR');
+      const errorMessage = `Error ${response.status}: ${errorData.error?.message || "Error desconocido"}`;
+      logger.log(errorMessage, "ERROR");
       logs.push(`ERROR: ${errorMessage}`);
-      throw new Error(errorMessage); 
+      throw new Error(errorMessage);
     }
 
     // 6. Obtener la respuesta
@@ -167,44 +177,55 @@ async function run(dataFieldsString = null) {
     const text = data.candidates[0].content.parts[0].text;
 
     logger.log(`Respuesta de Gemini recibida: ${text.length} caracteres`);
-    logger.log('Primeros 200 caracteres de la respuesta: ' + text.substring(0, 200));
+    logger.log(
+      "Primeros 200 caracteres de la respuesta: " + text.substring(0, 200),
+    );
     logs.push(`XML : ${dataFieldsString}`);
-    logs.push('Procesamiento completado exitosamente');
-    logs.push(`Tiempo total de ejecución: ${((Date.now() - startTime) / 1000).toFixed(2)}s`);
-    
+    logs.push("Procesamiento completado exitosamente");
+    logs.push(
+      `Tiempo total de ejecución: ${((Date.now() - startTime) / 1000).toFixed(2)}s`,
+    );
+
     // Devolver la respuesta de Gemini con logs y metadata
     return {
       success: true,
       result: text,
       logs: logs,
-      metadata: { 
-        inputLength: dataFieldsString ? dataFieldsString.length : 0, 
+      metadata: {
+        inputLength: dataFieldsString ? dataFieldsString.length : 0,
         outputLength: text.length,
         url: URL,
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     };
   } catch (error) {
     // Mejorar el mensaje de error con más detalles
     let errorMessage = `Error al ejecutar Gemini: ${error.message}`;
-    
+
     // Agregar stack trace si está disponible (solo en desarrollo)
-    if (error.stack && process.env.NODE_ENV === 'development') {
+    if (error.stack && process.env.NODE_ENV === "development") {
       errorMessage += `\n\nStack trace:\n${error.stack}`;
     }
-    
+
     // Agregar información adicional sobre el error
-    if (error.message.includes('GEMINI_API_KEY')) {
-      errorMessage += '\n\n💡 Tip: Asegúrate de configurar la variable de entorno antes de ejecutar Camunda Modeler.';
-    } else if (error.message.includes('fetch')) {
-      errorMessage += '\n\n💡 Tip: Verifica tu conexión a internet y que la API key sea válida.';
+    if (error.message.includes("GEMINI_API_KEY")) {
+      errorMessage +=
+        "\n\n💡 Tip: Asegúrate de configurar la variable de entorno antes de ejecutar Camunda Modeler.";
+    } else if (error.message.includes("fetch")) {
+      errorMessage +=
+        "\n\n💡 Tip: Verifica tu conexión a internet y que la API key sea válida.";
     }
-    
-    logger.log(errorMessage, 'ERROR');
-    logger.log(`Error completo: ${JSON.stringify(error, Object.getOwnPropertyNames(error))}`, 'ERROR');
+
+    logger.log(errorMessage, "ERROR");
+    logger.log(
+      `Error completo: ${JSON.stringify(error, Object.getOwnPropertyNames(error))}`,
+      "ERROR",
+    );
     logs.push(`ERROR: ${errorMessage}`);
-    logs.push(`Tiempo total de ejecución: ${((Date.now() - startTime) / 1000).toFixed(2)}s`);
-    
+    logs.push(
+      `Tiempo total de ejecución: ${((Date.now() - startTime) / 1000).toFixed(2)}s`,
+    );
+
     // Crear un nuevo error con el mensaje mejorado
     const enhancedError = new Error(errorMessage);
     enhancedError.originalError = error;
@@ -214,5 +235,5 @@ async function run(dataFieldsString = null) {
 
 // Exporta la función
 module.exports = {
-  run
+  run,
 };

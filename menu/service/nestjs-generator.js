@@ -1,33 +1,34 @@
-const fs = require('fs').promises;
-const os = require('os');
+const fs = require("fs").promises;
+const os = require("os");
 // const logger = require('./log/logger');
-const { spawn, execSync } = require('child_process');
-const logger = require('../log/logger');
-const path = require('path'); // Añadir import de path
-const readline = require('readline'); // Para preguntar al usuario
-
-
+const { spawn, execSync } = require("child_process");
+const logger = require("../log/logger");
+const path = require("path"); // Añadir import de path
+const readline = require("readline"); // Para preguntar al usuario
 
 // Configuración de Gemini API
-const URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+const URL =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
 // Función para obtener la API Key de config.json
 function getApiKey() {
-  const configPath = path.resolve(__dirname, '../../config.json');
+  const configPath = path.resolve(__dirname, "../../config.json");
   let config;
 
   try {
     config = require(configPath);
   } catch (error) {
     const errorMsg = `Error al cargar config.json en nestjs-generator. Asegúrate de que el archivo existe en la raíz del plugin y tiene el formato correcto.\n\nRuta esperada: ${configPath}\n\nError: ${error.message}`;
-    logger.log(errorMsg, 'ERROR');
+    logger.log(errorMsg, "ERROR");
     throw new Error(errorMsg);
   }
 
   const apiKey = config.GEMINI_API_KEY;
   if (!apiKey) {
-    const errorMsg = 'GEMINI_API_KEY no está configurada en config.json para nestjs-generator. Por favor, asegúrate de que el archivo config.json contiene la clave GEMINI_API_KEY con tu API key de Google AI Studio.\n\nRuta del archivo: ' + configPath;
-    logger.log(errorMsg, 'ERROR');
+    const errorMsg =
+      "GEMINI_API_KEY no está configurada en config.json para nestjs-generator. Por favor, asegúrate de que el archivo config.json contiene la clave GEMINI_API_KEY con tu API key de Google AI Studio.\n\nRuta del archivo: " +
+      configPath;
+    logger.log(errorMsg, "ERROR");
     throw new Error(errorMsg);
   }
   return apiKey;
@@ -39,14 +40,20 @@ function getApiKey() {
 function askQuestion(question) {
   const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout
+    output: process.stdout,
   });
 
   return new Promise((resolve) => {
     rl.question(question, (answer) => {
       rl.close();
       const normalizedAnswer = answer.trim().toLowerCase();
-      resolve(normalizedAnswer === 's' || normalizedAnswer === 'si' || normalizedAnswer === 'sí' || normalizedAnswer === 'y' || normalizedAnswer === 'yes');
+      resolve(
+        normalizedAnswer === "s" ||
+          normalizedAnswer === "si" ||
+          normalizedAnswer === "sí" ||
+          normalizedAnswer === "y" ||
+          normalizedAnswer === "yes",
+      );
     });
   });
 }
@@ -57,22 +64,26 @@ function askQuestion(question) {
 function hasPrismaError(stdout, stderr) {
   const combinedOutput = (stdout + stderr).toLowerCase();
   const prismaErrorPatterns = [
-    'prisma',
-    'prisma client',
-    'prisma schema',
-    'prisma migrate',
-    'prisma generate',
-    'datasource',
-    'database url',
-    'schema.prisma',
-    'node_modules/.prisma/'
+    "prisma",
+    "prisma client",
+    "prisma schema",
+    "prisma migrate",
+    "prisma generate",
+    "datasource",
+    "database url",
+    "schema.prisma",
+    "node_modules/.prisma/",
   ];
-  
+
   // Buscar errores relacionados con Prisma
-  const errorKeywords = ['error', 'failed', 'failed to', 'cannot', 'unable'];
-  const hasError = errorKeywords.some(keyword => combinedOutput.includes(keyword));
-  const hasPrisma = prismaErrorPatterns.some(pattern => combinedOutput.includes(pattern));
-  
+  const errorKeywords = ["error", "failed", "failed to", "cannot", "unable"];
+  const hasError = errorKeywords.some((keyword) =>
+    combinedOutput.includes(keyword),
+  );
+  const hasPrisma = prismaErrorPatterns.some((pattern) =>
+    combinedOutput.includes(pattern),
+  );
+
   return hasError && hasPrisma;
 }
 
@@ -83,18 +94,23 @@ async function testStartCommand(projectDir, finalOutputDir) {
   const logs = [];
 
   const projectPath = path.join(finalOutputDir, projectDir);
-  
+
   logger.log(`Verificando que el proyecto existe en: ${projectPath}`);
   logs.push(`Verificando que el proyecto existe en: ${projectPath}`);
 
-  
   try {
     await fs.access(projectPath, fs.constants.F_OK);
   } catch (err) {
-    logger.log(`El proyecto no existe en ${projectPath}`, 'WARN');
+    logger.log(`El proyecto no existe en ${projectPath}`, "WARN");
     logs.push(`WARN: El proyecto no existe en ${projectPath}`);
     // Devolvemos los logs aunque fallemos aquí
-    return { success: false, hasPrismaError: false, stdout: '', stderr: 'Proyecto no encontrado', logs: logs };
+    return {
+      success: false,
+      hasPrismaError: false,
+      stdout: "",
+      stderr: "Proyecto no encontrado",
+      logs: logs,
+    };
   }
 
   logger.log(`Ejecutando 'npm run start' en ${projectPath}...`);
@@ -102,76 +118,84 @@ async function testStartCommand(projectDir, finalOutputDir) {
 
   return new Promise((resolve) => {
     let resolved = false; // Variable de control para evitar race conditions
-    
+
     // --- LÓGICA CORREGIDA SOLO PARA macOS ---
-    
-    const command = 'npm';
-    const args = ['run', 'start'];
+
+    const command = "npm";
+    const args = ["run", "start"];
     const homeDir = os.homedir();
-    const pathSeparator = ':';
-    
+    const pathSeparator = ":";
+
     // Lista de rutas para el PATH, comenzando con tu NVM específico
     let commonPaths = [
-      '/Users/diegoaliaga/.nvm/versions/node/v22.15.1/bin', // <-- TU PATH ESPECÍFICO
+      "/Users/diegoaliaga/.nvm/versions/node/v22.15.1/bin", // <-- TU PATH ESPECÍFICO
       `${homeDir}/.nvm/versions/node`,
       `${homeDir}/.nvm/versions/node/*/bin`,
-      '/usr/local/bin',
-      '/opt/homebrew/bin', // Homebrew en Apple Silicon
-      '/usr/bin',
-      '/bin',
+      "/usr/local/bin",
+      "/opt/homebrew/bin", // Homebrew en Apple Silicon
+      "/usr/bin",
+      "/bin",
     ];
-    
+
     // Construir el PATH mejorado
     const enhancedPath = [
       ...commonPaths,
-      process.env.PATH || '' // Añadir el PATH existente (limpio) al final
+      process.env.PATH || "", // Añadir el PATH existente (limpio) al final
     ].join(pathSeparator);
 
     // Crear el objeto 'env' para el spawn
-    const env = { 
-      ...process.env, 
+    const env = {
+      ...process.env,
       PATH: enhancedPath, // Usar el PATH que acabamos de construir
-      HOME: homeDir
+      HOME: homeDir,
     };
-    
-    logger.log(`[testStartCommand] Usando PATH hardcodeado para macOS: ${enhancedPath.substring(0, 100)}...`);
-    logs.push(`[testStartCommand] Usando PATH hardcodeado para encontrar npm...`);
+
+    logger.log(
+      `[testStartCommand] Usando PATH hardcodeado para macOS: ${enhancedPath.substring(0, 100)}...`,
+    );
+    logs.push(
+      `[testStartCommand] Usando PATH hardcodeado para encontrar npm...`,
+    );
 
     // --- FIN DE LA LÓGICA DE macOS ---
-    
+
     const child = spawn(command, args, {
-      stdio: ['inherit', 'pipe', 'pipe'],
+      stdio: ["inherit", "pipe", "pipe"],
       cwd: projectPath,
       env: env, // <-- Usar el 'env' corregido
-      shell: false // 'false' es correcto, llamamos a 'npm' directamente
+      shell: false, // 'false' es correcto, llamamos a 'npm' directamente
     });
-    
-    let stdout = '';
-    let stderr = '';
-    
-    child.stdout.on('data', (data) => {
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (data) => {
       const output = data.toString();
       stdout += output;
       logger.log(`[npm start] ${output.trim()}`);
       logs.push(`[npm start] ${output.trim()}`);
     });
-    
-    child.stderr.on('data', (data) => {
+
+    child.stderr.on("data", (data) => {
       const error = data.toString();
       stderr += error;
-      logger.log(`[npm start error] ${error.trim()}`, 'ERROR');
-      logs.push(`[npm start error] ${error.trim()}`, 'ERROR');
+      logger.log(`[npm start error] ${error.trim()}`, "ERROR");
+      logs.push(`[npm start error] ${error.trim()}`, "ERROR");
     });
-    
+
     // Matar el proceso después de unos segundos para detectar errores iniciales
     const timeout = setTimeout(() => {
       if (resolved) return;
       if (!child.killed) {
-        logger.log('Deteniendo npm start después del timeout para verificar errores...');
-        logs.push('Deteniendo npm start después del timeout para verificar errores...');
+        logger.log(
+          "Deteniendo npm start después del timeout para verificar errores...",
+        );
+        logs.push(
+          "Deteniendo npm start después del timeout para verificar errores...",
+        );
 
-        child.kill('SIGTERM');
-        
+        child.kill("SIGTERM");
+
         const prismaError = hasPrismaError(stdout, stderr);
         resolved = true;
         resolve({
@@ -179,29 +203,29 @@ async function testStartCommand(projectDir, finalOutputDir) {
           hasPrismaError: prismaError,
           logs: logs,
           stdout: stdout,
-          stderr: stderr
+          stderr: stderr,
         });
       }
     }, 10000); // 10 segundos para detectar errores
-    
-    child.on('error', (err) => {
+
+    child.on("error", (err) => {
       if (resolved) return;
       clearTimeout(timeout);
-      logger.log(`Error al ejecutar npm start: ${err.message}`, 'ERROR'); // El ENOENT aparece aquí
-      logs.push(`Error al ejecutar npm start: ${err.message}`, 'ERROR');
+      logger.log(`Error al ejecutar npm start: ${err.message}`, "ERROR"); // El ENOENT aparece aquí
+      logs.push(`Error al ejecutar npm start: ${err.message}`, "ERROR");
 
-      const prismaError = hasPrismaError('', err.message);
+      const prismaError = hasPrismaError("", err.message);
       resolved = true;
       resolve({
         success: false,
         hasPrismaError: prismaError,
         logs: logs,
         stdout: stdout,
-        stderr: stderr + err.message
+        stderr: stderr + err.message,
       });
     });
-    
-    child.on('close', (code) => {
+
+    child.on("close", (code) => {
       if (resolved) return;
       clearTimeout(timeout);
       logger.log(`npm start terminó con código: ${code}`);
@@ -213,42 +237,44 @@ async function testStartCommand(projectDir, finalOutputDir) {
         hasPrismaError: prismaError,
         logs: logs,
         stdout: stdout,
-        stderr: stderr
+        stderr: stderr,
       });
     });
   });
 }
 
-
 /**
  * Limpia los archivos generados
  */
 async function cleanupGeneratedFiles(finalOutputDir) {
-  const isWindows = process.platform === 'win32';
-  const scriptExtension = isWindows ? '.bat' : '.sh';
-  const scriptPath = path.join(finalOutputDir, `generar-backend${scriptExtension}`);
-  const projectDir = path.join(finalOutputDir, 'backend-scalfold');
-  
-  logger.log('Limpiando archivos generados...');
-  
+  const isWindows = process.platform === "win32";
+  const scriptExtension = isWindows ? ".bat" : ".sh";
+  const scriptPath = path.join(
+    finalOutputDir,
+    `generar-backend${scriptExtension}`,
+  );
+  const projectDir = path.join(finalOutputDir, "backend-scalfold");
+
+  logger.log("Limpiando archivos generados...");
+
   try {
     // Eliminar el script generado
     try {
       await fs.unlink(scriptPath);
       logger.log(`Script eliminado: ${scriptPath}`);
     } catch (err) {
-      logger.log(`No se pudo eliminar el script: ${err.message}`, 'WARN');
+      logger.log(`No se pudo eliminar el script: ${err.message}`, "WARN");
     }
-    
+
     // Eliminar el proyecto generado
     try {
       await fs.rm(projectDir, { recursive: true, force: true });
       logger.log(`Proyecto eliminado: ${projectDir}`);
     } catch (err) {
-      logger.log(`No se pudo eliminar el proyecto: ${err.message}`, 'WARN');
+      logger.log(`No se pudo eliminar el proyecto: ${err.message}`, "WARN");
     }
   } catch (err) {
-    logger.log(`Error durante la limpieza: ${err.message}`, 'WARN');
+    logger.log(`Error durante la limpieza: ${err.message}`, "WARN");
   }
 }
 
@@ -449,7 +475,10 @@ ${plantUMLCode}
 // He creado una versión básica para Windows.
 // Debes completarla con la lógica correcta para scripts .bat
 function generateBatchPrompt(plantUMLCode) {
-  logger.log('Usando prompt de BASH para BATCH - ¡esto debe ser implementado!', 'WARN');
+  logger.log(
+    "Usando prompt de BASH para BATCH - ¡esto debe ser implementado!",
+    "WARN",
+  );
   // ¡¡¡ ESTO ES UN PLACEHOLDER !!!
   // Deberías crear un prompt específico para Windows .bat
   // Por ahora, reusará el de bash, lo que probablemente fallará.
@@ -465,552 +494,632 @@ ${plantUMLCode}
 `;
 }
 
-
 async function main(plantUMLCode, outputDir = null) {
-    const logs = [];
-    
-    try {
-      logger.log('NestJS Generator Service iniciado');
-      logs.push('NestJS Generator Service iniciado');
-      
-      if (!plantUMLCode || plantUMLCode.trim().length === 0) {
-        throw new Error('El código PlantUML está vacío');
-      }
-      
-      // Detectar la plataforma del sistema operativo
-      const isWindows = process.platform === 'win32';
-      const isMacOS = process.platform === 'darwin';
-      const isLinux = process.platform === 'linux';
-      
-      logs.push(`PlantUML recibido: ${plantUMLCode.length} caracteres`);
-      logger.log(`Plataforma detectada: ${isWindows ? 'Windows' : isMacOS ? 'macOS' : isLinux ? 'Linux' : 'Otro'}`);
-      
-      // 1. Crear el prompt para Gemini según la plataforma
-      const prompt = isWindows ? generateBatchPrompt(plantUMLCode) : generateBashPrompt(plantUMLCode);
-      const scriptType = isWindows ? 'batch (.bat)' : 'bash (.sh)';
-      logger.log(`Generando script ${scriptType} para NestJS...`);
-      logs.push(`Generando script ${scriptType} para ${isWindows ? 'Windows' : 'macOS/Linux'}...`);
-  
-      // 2. Preparar el payload para Gemini
-      const payload = {
-        contents: [
-          {
-            parts: [
-              {
-                text: prompt
-              }
-            ]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 8192
-        }
-      };
-  
-      logger.log('Llamando a la API de Gemini para generar el script...');
-      logs.push('Llamando a la API de Gemini...');
-      
-      // 3. Llamar a Gemini API
-      const response = await fetch(`${URL}?key=${getApiKey()}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
+  const logs = [];
+
+  try {
+    logger.log("NestJS Generator Service iniciado");
+    logs.push("NestJS Generator Service iniciado");
+
+    if (!plantUMLCode || plantUMLCode.trim().length === 0) {
+      throw new Error("El código PlantUML está vacío");
+    }
+
+    // Detectar la plataforma del sistema operativo
+    const isWindows = process.platform === "win32";
+    const isMacOS = process.platform === "darwin";
+    const isLinux = process.platform === "linux";
+
+    logs.push(`PlantUML recibido: ${plantUMLCode.length} caracteres`);
+    logger.log(
+      `Plataforma detectada: ${isWindows ? "Windows" : isMacOS ? "macOS" : isLinux ? "Linux" : "Otro"}`,
+    );
+
+    // 1. Crear el prompt para Gemini según la plataforma
+    const prompt = isWindows
+      ? generateBatchPrompt(plantUMLCode)
+      : generateBashPrompt(plantUMLCode);
+    const scriptType = isWindows ? "batch (.bat)" : "bash (.sh)";
+    logger.log(`Generando script ${scriptType} para NestJS...`);
+    logs.push(
+      `Generando script ${scriptType} para ${isWindows ? "Windows" : "macOS/Linux"}...`,
+    );
+
+    // 2. Preparar el payload para Gemini
+    const payload = {
+      contents: [
+        {
+          parts: [
+            {
+              text: prompt,
+            },
+          ],
         },
-        body: JSON.stringify(payload)
-      });
-  
-      // 4. Manejar errores de la API
-      if (!response.ok) {
-        const errorData = await response.json();
-        const errorMessage = `Error ${response.status}: ${errorData.error?.message || 'Error desconocido'}`;
-        logger.log(errorMessage, 'ERROR');
-        logs.push(`ERROR: ${errorMessage}`);
-        throw new Error(errorMessage);
+      ],
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 8192,
+      },
+    };
+
+    logger.log("Llamando a la API de Gemini para generar el script...");
+    logs.push("Llamando a la API de Gemini...");
+
+    // 3. Llamar a Gemini API
+    const response = await fetch(`${URL}?key=${getApiKey()}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    // 4. Manejar errores de la API
+    if (!response.ok) {
+      const errorData = await response.json();
+      const errorMessage = `Error ${response.status}: ${errorData.error?.message || "Error desconocido"}`;
+      logger.log(errorMessage, "ERROR");
+      logs.push(`ERROR: ${errorMessage}`);
+      throw new Error(errorMessage);
+    }
+
+    // 5. Obtener la respuesta
+    const data = await response.json();
+    let generatedScript = data.candidates[0].content.parts[0].text;
+
+    // Limpiar el script (remover markdown code blocks si existen)
+    if (isWindows) {
+      // Para scripts batch de Windows
+      generatedScript = generatedScript
+        .replace(/^```batch\n?/i, "")
+        .replace(/^```cmd\n?/i, "")
+        .replace(/^```bat\n?/i, "")
+        .replace(/^```\n?/, "")
+        .replace(/\n```$/, "")
+        .replace(/\n```batch$/i, "")
+        .replace(/\n```cmd$/i, "")
+        .replace(/\n```bat$/i, "")
+        .trim();
+
+      // Asegurar que empiece con @echo off
+      if (
+        !generatedScript.toLowerCase().includes("@echo off") &&
+        !generatedScript.toLowerCase().includes("@echo")
+      ) {
+        generatedScript =
+          "@echo off\nsetlocal enabledelayedexpansion\n\n" + generatedScript;
       }
-  
-      // 5. Obtener la respuesta
-      const data = await response.json();
-      let generatedScript = data.candidates[0].content.parts[0].text;
-      
-      // Limpiar el script (remover markdown code blocks si existen)
-      if (isWindows) {
-        // Para scripts batch de Windows
-        generatedScript = generatedScript
-          .replace(/^```batch\n?/i, '')
-          .replace(/^```cmd\n?/i, '')
-          .replace(/^```bat\n?/i, '')
-          .replace(/^```\n?/, '')
-          .replace(/\n```$/, '')
-          .replace(/\n```batch$/i, '')
-          .replace(/\n```cmd$/i, '')
-          .replace(/\n```bat$/i, '')
-          .trim();
-        
-        // Asegurar que empiece con @echo off
-        if (!generatedScript.toLowerCase().includes('@echo off') && !generatedScript.toLowerCase().includes('@echo')) {
-          generatedScript = '@echo off\nsetlocal enabledelayedexpansion\n\n' + generatedScript;
-        }
-      } else {
-        // Para scripts bash de macOS/Linux
-        generatedScript = generatedScript
-          .replace(/^```bash\n?/i, '')
-          .replace(/^```sh\n?/i, '')
-          .replace(/^```\n?/, '')
-          .replace(/\n```$/, '')
-          .replace(/\n```bash$/, '')
-          .replace(/\n```sh$/, '')
-          .trim();
-        
-        // Asegurar que empiece con shebang
-        if (!generatedScript.startsWith('#!/bin/bash') && !generatedScript.startsWith('#!/bin/sh')) {
-          generatedScript = '#!/bin/bash\n\n' + generatedScript;
-        }
+    } else {
+      // Para scripts bash de macOS/Linux
+      generatedScript = generatedScript
+        .replace(/^```bash\n?/i, "")
+        .replace(/^```sh\n?/i, "")
+        .replace(/^```\n?/, "")
+        .replace(/\n```$/, "")
+        .replace(/\n```bash$/, "")
+        .replace(/\n```sh$/, "")
+        .trim();
+
+      // Asegurar que empiece con shebang
+      if (
+        !generatedScript.startsWith("#!/bin/bash") &&
+        !generatedScript.startsWith("#!/bin/sh")
+      ) {
+        generatedScript = "#!/bin/bash\n\n" + generatedScript;
       }
-      
-      logger.log(`Script ${scriptType} generado: ${generatedScript.length} caracteres`);
-      logs.push(`Script ${scriptType} generado exitosamente: ${generatedScript.length} caracteres`);
-      
-      // 6. Determinar el directorio de salida (usar directorio home si process.cwd() no es válido)
-      let finalOutputDir = outputDir;
-      
-      if (!finalOutputDir) {
-        // Intentar usar process.cwd() primero
-        try {
-          const cwd = process.cwd();
-          // Verificar que no sea la raíz del sistema
-          if (cwd && cwd !== '/' && cwd !== '\\') {
-            // Verificar que el directorio sea escribible
-            try {
-              await fs.access(cwd, fs.constants.W_OK);
-              finalOutputDir = cwd;
-              logger.log(`Usando directorio actual: ${finalOutputDir}`);
-            } catch (err) {
-              logger.log(`El directorio actual no es escribible, usando directorio home`, 'WARN');
-              finalOutputDir = os.homedir();
-            }
-          } else {
-            logger.log(`process.cwd() devolvió raíz del sistema, usando directorio home`, 'WARN');
+    }
+
+    logger.log(
+      `Script ${scriptType} generado: ${generatedScript.length} caracteres`,
+    );
+    logs.push(
+      `Script ${scriptType} generado exitosamente: ${generatedScript.length} caracteres`,
+    );
+
+    // 6. Determinar el directorio de salida (usar directorio home si process.cwd() no es válido)
+    let finalOutputDir = outputDir;
+
+    if (!finalOutputDir) {
+      // Intentar usar process.cwd() primero
+      try {
+        const cwd = process.cwd();
+        // Verificar que no sea la raíz del sistema
+        if (cwd && cwd !== "/" && cwd !== "\\") {
+          // Verificar que el directorio sea escribible
+          try {
+            await fs.access(cwd, fs.constants.W_OK);
+            finalOutputDir = cwd;
+            logger.log(`Usando directorio actual: ${finalOutputDir}`);
+          } catch (err) {
+            logger.log(
+              `El directorio actual no es escribible, usando directorio home`,
+              "WARN",
+            );
             finalOutputDir = os.homedir();
           }
-        } catch (err) {
-          logger.log(`Error accediendo a process.cwd(), usando directorio home: ${err.message}`, 'WARN');
+        } else {
+          logger.log(
+            `process.cwd() devolvió raíz del sistema, usando directorio home`,
+            "WARN",
+          );
           finalOutputDir = os.homedir();
         }
-      }
-      
-      // Asegurar que el directorio existe y es escribible
-      try {
-        await fs.access(finalOutputDir, fs.constants.W_OK);
       } catch (err) {
-        // Si no es escribible, usar directorio temporal
-        logger.log(`El directorio no es escribible, usando directorio temporal`, 'WARN');
-        finalOutputDir = os.tmpdir();
+        logger.log(
+          `Error accediendo a process.cwd(), usando directorio home: ${err.message}`,
+          "WARN",
+        );
+        finalOutputDir = os.homedir();
       }
-      
-      // Determinar la extensión del archivo según la plataforma
-      const scriptExtension = isWindows ? '.bat' : '.sh';
-      const outputFilename = path.join(finalOutputDir, `generar-backend${scriptExtension}`);
-      logger.log(`Directorio de salida: ${finalOutputDir}`);
-      logger.log(`Archivo de salida: ${outputFilename}`);
-      logger.log(`Tipo de script: ${scriptType}`);
-      
-      // 7. Guardar el script con la codificación correcta
-      // Windows batch scripts deben guardarse con codificación adecuada (utf8 funciona en la mayoría de los casos)
-      await fs.writeFile(outputFilename, generatedScript, 'utf8');
-      logger.log(`Script guardado en: ${outputFilename}`);
-      logs.push(`Script ${scriptType} guardado en: ${outputFilename}`);
-      
-      // 8. Dar permisos de ejecución (solo en macOS/Linux - Unix-like systems)
-      // En Windows, los permisos funcionan diferente y no se necesita chmod
-      if (!isWindows) {
-        try {
-          await fs.chmod(outputFilename, 0o755);
-          logger.log('Permisos de ejecución otorgados (chmod +x)');
-          logs.push('Permisos de ejecución otorgados (chmod +x) - macOS/Linux');
-        } catch (err) {
-          logger.log(`Advertencia: No se pudieron otorgar permisos de ejecución: ${err.message}`, 'WARN');
-          logs.push(`Advertencia: Permisos de ejecución: ${err.message}`);
-        }
-      } else {
-        logger.log('Windows detectado: No se requieren permisos chmod (Windows maneja permisos diferente)');
-        logs.push('Windows detectado: Los permisos de archivos se manejan automáticamente');
-      }
-      
-      // 9. Ejecutar el script automáticamente
-      logger.log('Iniciando ejecución del script... (Esto puede tardar varios minutos)');
-      logs.push('Iniciando ejecución del script...');
-      
-      // Asegurar que el path sea absoluto
-      const scriptPath = path.isAbsolute(outputFilename) 
-        ? outputFilename 
-        : path.join(finalOutputDir, outputFilename);
-      
-      // Verificar que el archivo existe antes de ejecutarlo
+    }
+
+    // Asegurar que el directorio existe y es escribible
+    try {
+      await fs.access(finalOutputDir, fs.constants.W_OK);
+    } catch (err) {
+      // Si no es escribible, usar directorio temporal
+      logger.log(
+        `El directorio no es escribible, usando directorio temporal`,
+        "WARN",
+      );
+      finalOutputDir = os.tmpdir();
+    }
+
+    // Determinar la extensión del archivo según la plataforma
+    const scriptExtension = isWindows ? ".bat" : ".sh";
+    const outputFilename = path.join(
+      finalOutputDir,
+      `generar-backend${scriptExtension}`,
+    );
+    logger.log(`Directorio de salida: ${finalOutputDir}`);
+    logger.log(`Archivo de salida: ${outputFilename}`);
+    logger.log(`Tipo de script: ${scriptType}`);
+
+    // 7. Guardar el script con la codificación correcta
+    // Windows batch scripts deben guardarse con codificación adecuada (utf8 funciona en la mayoría de los casos)
+    await fs.writeFile(outputFilename, generatedScript, "utf8");
+    logger.log(`Script guardado en: ${outputFilename}`);
+    logs.push(`Script ${scriptType} guardado en: ${outputFilename}`);
+
+    // 8. Dar permisos de ejecución (solo en macOS/Linux - Unix-like systems)
+    // En Windows, los permisos funcionan diferente y no se necesita chmod
+    if (!isWindows) {
       try {
-        await fs.access(scriptPath, fs.constants.F_OK);
-        logger.log(`Script encontrado: ${scriptPath}`);
+        await fs.chmod(outputFilename, 0o755);
+        logger.log("Permisos de ejecución otorgados (chmod +x)");
+        logs.push("Permisos de ejecución otorgados (chmod +x) - macOS/Linux");
       } catch (err) {
-        throw new Error(`El script no existe en: ${scriptPath}`);
+        logger.log(
+          `Advertencia: No se pudieron otorgar permisos de ejecución: ${err.message}`,
+          "WARN",
+        );
+        logs.push(`Advertencia: Permisos de ejecución: ${err.message}`);
       }
-      
-      // Verificar permisos de ejecución (solo en sistemas Unix-like)
-      if (!isWindows) {
-        try {
-          await fs.access(scriptPath, fs.constants.X_OK);
-          logger.log(`Script tiene permisos de ejecución`);
-        } catch (err) {
-          logger.log(`Otorgando permisos de ejecución nuevamente...`, 'WARN');
-          try {
-            await fs.chmod(scriptPath, 0o755);
-          } catch (chmodErr) {
-            logger.log(`No se pudieron otorgar permisos: ${chmodErr.message}`, 'WARN');
-          }
-        }
-      }
-      
-      logger.log(`Ejecutando script: ${scriptPath}`);
-      logger.log(`Directorio de trabajo: ${finalOutputDir}`);
-      logger.log(`Plataforma: ${process.platform} (${isWindows ? 'Windows' : isMacOS ? 'macOS' : isLinux ? 'Linux' : 'Otro'})`);
-      
-      // Verificar que npm esté disponible antes de ejecutar
-      logger.log('Verificando que npm esté disponible...');
+    } else {
+      logger.log(
+        "Windows detectado: No se requieren permisos chmod (Windows maneja permisos diferente)",
+      );
+      logs.push(
+        "Windows detectado: Los permisos de archivos se manejan automáticamente",
+      );
+    }
+
+    // 9. Ejecutar el script automáticamente
+    logger.log(
+      "Iniciando ejecución del script... (Esto puede tardar varios minutos)",
+    );
+    logs.push("Iniciando ejecución del script...");
+
+    // Asegurar que el path sea absoluto
+    const scriptPath = path.isAbsolute(outputFilename)
+      ? outputFilename
+      : path.join(finalOutputDir, outputFilename);
+
+    // Verificar que el archivo existe antes de ejecutarlo
+    try {
+      await fs.access(scriptPath, fs.constants.F_OK);
+      logger.log(`Script encontrado: ${scriptPath}`);
+    } catch (err) {
+      throw new Error(`El script no existe en: ${scriptPath}`);
+    }
+
+    // Verificar permisos de ejecución (solo en sistemas Unix-like)
+    if (!isWindows) {
       try {
-        const npmCheck = spawn('npm', ['--version'], { stdio: 'pipe' });
-        await new Promise((resolve, reject) => {
-          npmCheck.on('close', (code) => {
-            if (code === 0) {
-              logger.log('npm está disponible');
-              resolve();
-            } else {
-              reject(new Error('npm no está disponible'));
-            }
-          });
-          npmCheck.on('error', reject);
-        });
+        await fs.access(scriptPath, fs.constants.X_OK);
+        logger.log(`Script tiene permisos de ejecución`);
       } catch (err) {
-        logger.log('Advertencia: No se pudo verificar npm, continuando de todos modos...', 'WARN');
-      }
-      
-      // Configurar el comando de ejecución según la plataforma
-      let command;
-      let args;
-      
-      if (isWindows) {
-        // En Windows, ejecutar el script .bat directamente con cmd
-        command = 'cmd';
-        args = ['/c', scriptPath];
-        logger.log('Ejecutando script batch de Windows con cmd');
-      } else {
-        // En macOS/Linux, usar bash explícitamente para ejecutar el script .sh
-        command = '/bin/bash';
-        args = [scriptPath];
-        logger.log('Ejecutando script bash con /bin/bash');
-      }
-      
-      logger.log(`Comando: ${command} ${args.join(' ')}`);
-      
-      // Construir un PATH mejorado que incluya rutas comunes de Node.js/npm
-      const homeDir = os.homedir();
-      let commonPaths = [];
-      let npmPath = null;
-      const pathSeparator = isWindows ? ';' : ':';
-      
-      if (isWindows) {
-        // Rutas comunes en Windows para Node.js/npm
-        commonPaths = [
-          path.join(homeDir, 'AppData', 'Roaming', 'npm'),
-          'C:\\Program Files\\nodejs',
-          'C:\\Program Files (x86)\\nodejs',
-          process.env.PATH || ''
-        ].filter(Boolean);
-        
-        // Intentar encontrar npm en Windows
+        logger.log(`Otorgando permisos de ejecución nuevamente...`, "WARN");
         try {
-          const whereResult = execSync('where npm', { encoding: 'utf8', stdio: 'pipe' }).trim();
-          if (whereResult && whereResult.length > 0) {
-            npmPath = whereResult.split('\n')[0].trim();
-            logger.log(`npm encontrado en: ${npmPath}`);
-          }
-        } catch (err) {
-          // Intentar con rutas comunes de Windows
-          const possiblePaths = [
-            'C:\\Program Files\\nodejs\\npm.cmd',
-            'C:\\Program Files (x86)\\nodejs\\npm.cmd',
-            path.join(homeDir, 'AppData', 'Roaming', 'npm', 'npm.cmd')
-          ];
-          
-          for (const possiblePath of possiblePaths) {
-            try {
-              await fs.access(possiblePath, fs.constants.F_OK);
-              npmPath = possiblePath;
-              logger.log(`npm encontrado en ubicación común: ${npmPath}`);
-              break;
-            } catch (e) {
-              // Continuar buscando
-            }
-          }
-        }
-      } else {
-        // Rutas comunes en macOS/Linux para Node.js/npm
-        commonPaths = [
-          `${homeDir}/.nvm/versions/node/*/bin`,
-          '/usr/local/bin',
-          '/opt/homebrew/bin',
-          '/usr/bin',
-          '/bin',
-          process.env.PATH || ''
-        ].filter(Boolean);
-        
-        // Intentar encontrar npm en macOS/Linux
-        try {
-          npmPath = execSync('which npm', { encoding: 'utf8' }).trim();
-          logger.log(`npm encontrado en: ${npmPath}`);
-        } catch (err) {
-          // Intentar con rutas comunes
-          const possiblePaths = [
-            '/usr/local/bin/npm',
-            '/opt/homebrew/bin/npm',
-            '/usr/bin/npm'
-          ];
-          
-          for (const possiblePath of possiblePaths) {
-            try {
-              await fs.access(possiblePath, fs.constants.F_OK);
-              npmPath = possiblePath;
-              logger.log(`npm encontrado en ubicación común: ${npmPath}`);
-              break;
-            } catch (e) {
-              // Continuar buscando
-            }
-          }
+          await fs.chmod(scriptPath, 0o755);
+        } catch (chmodErr) {
+          logger.log(
+            `No se pudieron otorgar permisos: ${chmodErr.message}`,
+            "WARN",
+          );
         }
       }
-      
-      // Construir PATH mejorado
-      const enhancedPath = [
-        ...commonPaths,
-        ...(npmPath ? [path.dirname(npmPath)] : []),
-        process.env.PATH || ''
-      ].join(pathSeparator);
-      
-      logger.log(`PATH mejorado: ${enhancedPath.substring(0, 200)}...`);
-      logs.push(`PATH mejorado: ${enhancedPath.substring(0, 200)}...`);
+    }
 
-      // Ejecutar el script con PATH mejorado
-      const child = spawn(command, args, {
-        stdio: ['inherit', 'pipe', 'pipe'],
-        cwd: finalOutputDir,
-        env: { 
-          ...process.env, 
-          PATH: enhancedPath,
-          HOME: homeDir
-        }
-      });
-      
-      let stdout = '';
-      let stderr = '';
-      
-      child.stdout.on('data', (data) => {
-        const output = data.toString();
-        stdout += output;
-        logger.log(`[Script Output] ${output.trim()}`);
-      });
-      
-      child.stderr.on('data', (data) => {
-        const error = data.toString();
-        stderr += error;
-        logger.log(`[Script Error] ${error.trim()}`, 'ERROR');
-      });
-      
-      // 10. Esperar a que el script termine
-      const exitCode = await new Promise((resolve, reject) => {
-        // Manejar errores de spawn (cuando no se puede iniciar el proceso)
-        child.on('error', (err) => {
-          logger.log(`Error al ejecutar el script: ${err.message}`, 'ERROR');
-          logger.log(`Comando intentado: ${command} ${args.join(' ')}`, 'ERROR');
-          stderr += `Error al ejecutar: ${err.message}\n`;
-          reject(err);
-        });
-        
-        // Manejar cuando el proceso termina
-        child.on('close', (code) => {
-          logger.log(`Script terminó con código: ${code}`);
-          resolve(code);
-        });
-      });
-      
-      if (exitCode === 0) {
-        logger.log('¡Script ejecutado exitosamente!');
-        logs.push('¡Script ejecutado exitosamente!');
-        logs.push(`Código de salida: ${exitCode}`);
-        
-        // Ejecutar npm run start para verificar que todo funciona
-        logger.log('Ejecutando npm run start para verificar el proyecto...');
-        logs.push('Ejecutando npm run start para verificar el proyecto...');
+    logger.log(`Ejecutando script: ${scriptPath}`);
+    logger.log(`Directorio de trabajo: ${finalOutputDir}`);
+    logger.log(
+      `Plataforma: ${process.platform} (${isWindows ? "Windows" : isMacOS ? "macOS" : isLinux ? "Linux" : "Otro"})`,
+    );
 
-        const startResult = await testStartCommand('backend-scalfold', finalOutputDir);
-        logs.push(startResult.logs);
-        logs.push(startResult, finalOutputDir);
-        if (startResult.hasPrismaError) {
-          logger.log('Se detectó un error de Prisma al ejecutar npm run start', 'ERROR');
-          logs.push('Se detectó un error de Prisma al ejecutar npm run start', 'ERROR');
-
-          logger.log(`Salida: ${startResult.stdout}`);
-          logger.log(`Errores: ${startResult.stderr}`);
-          
-          const shouldRetry = true;
-          
-          if (shouldRetry) {
-            logger.log('Limpiando archivos generados y reiniciando el proceso...');
-            await cleanupGeneratedFiles(finalOutputDir);
-            // Lanzar un error especial para indicar que se debe repetir
-            const retryError = new Error('REPEAT_PROCESS (npm start failure)');
-            retryError.shouldRetry = true;
-            throw retryError;
+    // Verificar que npm esté disponible antes de ejecutar
+    logger.log("Verificando que npm esté disponible...");
+    try {
+      const npmCheck = spawn("npm", ["--version"], { stdio: "pipe" });
+      await new Promise((resolve, reject) => {
+        npmCheck.on("close", (code) => {
+          if (code === 0) {
+            logger.log("npm está disponible");
+            resolve();
           } else {
-            logger.log('Proceso cancelado por el usuario');
-            return {
-              success: false,
-              scriptPath: outputFilename,
-              outputDir: finalOutputDir,
-              exitCode: exitCode,
-              stdout: stdout + '\n--- npm start output ---\n' + startResult.stdout,
-              stderr: stderr + '\n--- npm start errors ---\n' + startResult.stderr,
-              logs: logs,
-              hasPrismaError: true,
-              metadata: {
-                scriptLength: generatedScript.length,
-                plantUMLLength: plantUMLCode.length,
-                timestamp: new Date().toISOString()
-              }
-            };
+            reject(new Error("npm no está disponible"));
+          }
+        });
+        npmCheck.on("error", reject);
+      });
+    } catch (err) {
+      logger.log(
+        "Advertencia: No se pudo verificar npm, continuando de todos modos...",
+        "WARN",
+      );
+    }
+
+    // Configurar el comando de ejecución según la plataforma
+    let command;
+    let args;
+
+    if (isWindows) {
+      // En Windows, ejecutar el script .bat directamente con cmd
+      command = "cmd";
+      args = ["/c", scriptPath];
+      logger.log("Ejecutando script batch de Windows con cmd");
+    } else {
+      // En macOS/Linux, usar bash explícitamente para ejecutar el script .sh
+      command = "/bin/bash";
+      args = [scriptPath];
+      logger.log("Ejecutando script bash con /bin/bash");
+    }
+
+    logger.log(`Comando: ${command} ${args.join(" ")}`);
+
+    // Construir un PATH mejorado que incluya rutas comunes de Node.js/npm
+    const homeDir = os.homedir();
+    let commonPaths = [];
+    let npmPath = null;
+    const pathSeparator = isWindows ? ";" : ":";
+
+    if (isWindows) {
+      // Rutas comunes en Windows para Node.js/npm
+      commonPaths = [
+        path.join(homeDir, "AppData", "Roaming", "npm"),
+        "C:\\Program Files\\nodejs",
+        "C:\\Program Files (x86)\\nodejs",
+        process.env.PATH || "",
+      ].filter(Boolean);
+
+      // Intentar encontrar npm en Windows
+      try {
+        const whereResult = execSync("where npm", {
+          encoding: "utf8",
+          stdio: "pipe",
+        }).trim();
+        if (whereResult && whereResult.length > 0) {
+          npmPath = whereResult.split("\n")[0].trim();
+          logger.log(`npm encontrado en: ${npmPath}`);
+        }
+      } catch (err) {
+        // Intentar con rutas comunes de Windows
+        const possiblePaths = [
+          "C:\\Program Files\\nodejs\\npm.cmd",
+          "C:\\Program Files (x86)\\nodejs\\npm.cmd",
+          path.join(homeDir, "AppData", "Roaming", "npm", "npm.cmd"),
+        ];
+
+        for (const possiblePath of possiblePaths) {
+          try {
+            await fs.access(possiblePath, fs.constants.F_OK);
+            npmPath = possiblePath;
+            logger.log(`npm encontrado en ubicación común: ${npmPath}`);
+            break;
+          } catch (e) {
+            // Continuar buscando
           }
         }
-        
-        if (!startResult.success) {
-          logger.log('npm run start falló, pero no se detectó error de Prisma específico', 'WARN');
-          logs.push('npm run start falló, pero no se detectó error de Prisma específico', 'WARN');
+      }
+    } else {
+      // Rutas comunes en macOS/Linux para Node.js/npm
+      commonPaths = [
+        `${homeDir}/.nvm/versions/node/*/bin`,
+        "/usr/local/bin",
+        "/opt/homebrew/bin",
+        "/usr/bin",
+        "/bin",
+        process.env.PATH || "",
+      ].filter(Boolean);
 
-        } else {
-          logger.log('¡npm run start ejecutado exitosamente!');
-          logs.push('¡npm run start ejecutado exitosamente!');
+      // Intentar encontrar npm en macOS/Linux
+      try {
+        npmPath = execSync("which npm", { encoding: "utf8" }).trim();
+        logger.log(`npm encontrado en: ${npmPath}`);
+      } catch (err) {
+        // Intentar con rutas comunes
+        const possiblePaths = [
+          "/usr/local/bin/npm",
+          "/opt/homebrew/bin/npm",
+          "/usr/bin/npm",
+        ];
 
-        }
-        
-        return {
-          success: true,
-          scriptPath: outputFilename,
-          outputDir: finalOutputDir,
-          exitCode: exitCode,
-          stdout: stdout + '\n--- npm start output ---\n' + startResult.stdout,
-          stderr: stderr + '\n--- npm start errors ---\n' + startResult.stderr,
-          logs: logs,
-          metadata: {
-            scriptLength: generatedScript.length,
-            plantUMLLength: plantUMLCode.length,
-            timestamp: new Date().toISOString()
+        for (const possiblePath of possiblePaths) {
+          try {
+            await fs.access(possiblePath, fs.constants.F_OK);
+            npmPath = possiblePath;
+            logger.log(`npm encontrado en ubicación común: ${npmPath}`);
+            break;
+          } catch (e) {
+            // Continuar buscando
           }
-        };
-      } else {
-        // *** INICIO DE LA CORRECCIÓN ***
-        // El script falló. Verificar si fue por un error de Prisma.
-        const errorMessage = `El script falló con código de salida ${exitCode}`;
-        logger.log(errorMessage, 'ERROR');
-        logs.push(errorMessage, 'ERROR');
-
-        logs.push(`ERROR: ${errorMessage}`);
-        if (stdout) {
-          logs.push(`\n--- Salida del Script ---\n${stdout}`);
         }
-        if (stderr) {
-          logs.push(`\n--- Errores del Script ---\n${stderr}`);
-        }
-        
-        // Verificar si el script falló DEBIDO a un error de Prisma
-        const prismaError = hasPrismaError(stdout, stderr);
-        
-        if (prismaError) {
-          logger.log('Se detectó un error de Prisma durante la ejecución del script.', 'ERROR');
-          logs.push('Se detectó un error de Prisma durante la ejecución del script.', 'ERROR');
+      }
+    }
 
-          logger.log('Limpiando archivos generados y reiniciando el proceso...');
+    // Construir PATH mejorado
+    const enhancedPath = [
+      ...commonPaths,
+      ...(npmPath ? [path.dirname(npmPath)] : []),
+      process.env.PATH || "",
+    ].join(pathSeparator);
+
+    logger.log(`PATH mejorado: ${enhancedPath.substring(0, 200)}...`);
+    logs.push(`PATH mejorado: ${enhancedPath.substring(0, 200)}...`);
+
+    // Ejecutar el script con PATH mejorado
+    const child = spawn(command, args, {
+      stdio: ["inherit", "pipe", "pipe"],
+      cwd: finalOutputDir,
+      env: {
+        ...process.env,
+        PATH: enhancedPath,
+        HOME: homeDir,
+      },
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (data) => {
+      const output = data.toString();
+      stdout += output;
+      logger.log(`[Script Output] ${output.trim()}`);
+    });
+
+    child.stderr.on("data", (data) => {
+      const error = data.toString();
+      stderr += error;
+      logger.log(`[Script Error] ${error.trim()}`, "ERROR");
+    });
+
+    // 10. Esperar a que el script termine
+    const exitCode = await new Promise((resolve, reject) => {
+      // Manejar errores de spawn (cuando no se puede iniciar el proceso)
+      child.on("error", (err) => {
+        logger.log(`Error al ejecutar el script: ${err.message}`, "ERROR");
+        logger.log(`Comando intentado: ${command} ${args.join(" ")}`, "ERROR");
+        stderr += `Error al ejecutar: ${err.message}\n`;
+        reject(err);
+      });
+
+      // Manejar cuando el proceso termina
+      child.on("close", (code) => {
+        logger.log(`Script terminó con código: ${code}`);
+        resolve(code);
+      });
+    });
+
+    if (exitCode === 0) {
+      logger.log("¡Script ejecutado exitosamente!");
+      logs.push("¡Script ejecutado exitosamente!");
+      logs.push(`Código de salida: ${exitCode}`);
+
+      // Ejecutar npm run start para verificar que todo funciona
+      logger.log("Ejecutando npm run start para verificar el proyecto...");
+      logs.push("Ejecutando npm run start para verificar el proyecto...");
+
+      const startResult = await testStartCommand(
+        "backend-scalfold",
+        finalOutputDir,
+      );
+      logs.push(startResult.logs);
+      logs.push(startResult, finalOutputDir);
+      if (startResult.hasPrismaError) {
+        logger.log(
+          "Se detectó un error de Prisma al ejecutar npm run start",
+          "ERROR",
+        );
+        logs.push(
+          "Se detectó un error de Prisma al ejecutar npm run start",
+          "ERROR",
+        );
+
+        logger.log(`Salida: ${startResult.stdout}`);
+        logger.log(`Errores: ${startResult.stderr}`);
+
+        const shouldRetry = true;
+
+        if (shouldRetry) {
+          logger.log(
+            "Limpiando archivos generados y reiniciando el proceso...",
+          );
           await cleanupGeneratedFiles(finalOutputDir);
-          
-          // Lanzar el error especial de repetición
-          const retryError = new Error('REPEAT_PROCESS (Script failure)');
+          // Lanzar un error especial para indicar que se debe repetir
+          const retryError = new Error("REPEAT_PROCESS (npm start failure)");
           retryError.shouldRetry = true;
           throw retryError;
+        } else {
+          logger.log("Proceso cancelado por el usuario");
+          return {
+            success: false,
+            scriptPath: outputFilename,
+            outputDir: finalOutputDir,
+            exitCode: exitCode,
+            stdout:
+              stdout + "\n--- npm start output ---\n" + startResult.stdout,
+            stderr:
+              stderr + "\n--- npm start errors ---\n" + startResult.stderr,
+            logs: logs,
+            hasPrismaError: true,
+            metadata: {
+              scriptLength: generatedScript.length,
+              plantUMLLength: plantUMLCode.length,
+              timestamp: new Date().toISOString(),
+            },
+          };
         }
-        // *** FIN DE LA CORRECCIÓN ***
-        
-        // Si falló por otra razón (que no sea de Prisma), lanzar el error normal
-        const errorWithLogs = new Error(errorMessage);
-        errorWithLogs.logs = logs;
-        errorWithLogs.stdout = stdout;
-        errorWithLogs.stderr = stderr;
-        errorWithLogs.exitCode = exitCode;
-        
-        throw errorWithLogs;
       }
-      
-    } catch (error) {
-      // Si es un error de repetición, relanzarlo para que se maneje en el nivel superior
-      if (error.shouldRetry) {
-        throw error;
+
+      if (!startResult.success) {
+        logger.log(
+          "npm run start falló, pero no se detectó error de Prisma específico",
+          "WARN",
+        );
+        logs.push(
+          "npm run start falló, pero no se detectó error de Prisma específico",
+          "WARN",
+        );
+      } else {
+        logger.log("¡npm run start ejecutado exitosamente!");
+        logs.push("¡npm run start ejecutado exitosamente!");
       }
-      
-      const errorMessage = `Error al generar proyecto NestJS: ${error.message}`;
-      logger.log(errorMessage, 'ERROR');
+
+      return {
+        success: true,
+        scriptPath: outputFilename,
+        outputDir: finalOutputDir,
+        exitCode: exitCode,
+        stdout: stdout + "\n--- npm start output ---\n" + startResult.stdout,
+        stderr: stderr + "\n--- npm start errors ---\n" + startResult.stderr,
+        logs: logs,
+        metadata: {
+          scriptLength: generatedScript.length,
+          plantUMLLength: plantUMLCode.length,
+          timestamp: new Date().toISOString(),
+        },
+      };
+    } else {
+      // *** INICIO DE LA CORRECCIÓN ***
+      // El script falló. Verificar si fue por un error de Prisma.
+      const errorMessage = `El script falló con código de salida ${exitCode}`;
+      logger.log(errorMessage, "ERROR");
+      logs.push(errorMessage, "ERROR");
+
       logs.push(`ERROR: ${errorMessage}`);
-      
-      // Retornar información del error incluyendo logs si están disponibles
-      // Si el error ya tiene logs (por ejemplo, de un error anterior), preservarlos
+      if (stdout) {
+        logs.push(`\n--- Salida del Script ---\n${stdout}`);
+      }
+      if (stderr) {
+        logs.push(`\n--- Errores del Script ---\n${stderr}`);
+      }
+
+      // Verificar si el script falló DEBIDO a un error de Prisma
+      const prismaError = hasPrismaError(stdout, stderr);
+
+      if (prismaError) {
+        logger.log(
+          "Se detectó un error de Prisma durante la ejecución del script.",
+          "ERROR",
+        );
+        logs.push(
+          "Se detectó un error de Prisma durante la ejecución del script.",
+          "ERROR",
+        );
+
+        logger.log("Limpiando archivos generados y reiniciando el proceso...");
+        await cleanupGeneratedFiles(finalOutputDir);
+
+        // Lanzar el error especial de repetición
+        const retryError = new Error("REPEAT_PROCESS (Script failure)");
+        retryError.shouldRetry = true;
+        throw retryError;
+      }
+      // *** FIN DE LA CORRECCIÓN ***
+
+      // Si falló por otra razón (que no sea de Prisma), lanzar el error normal
       const errorWithLogs = new Error(errorMessage);
-      errorWithLogs.logs = error.logs || logs;
-      errorWithLogs.stdout = error.stdout || '';
-      errorWithLogs.stderr = error.stderr || error.message;
-      errorWithLogs.exitCode = error.exitCode;
-      
+      errorWithLogs.logs = logs;
+      errorWithLogs.stdout = stdout;
+      errorWithLogs.stderr = stderr;
+      errorWithLogs.exitCode = exitCode;
+
       throw errorWithLogs;
     }
+  } catch (error) {
+    // Si es un error de repetición, relanzarlo para que se maneje en el nivel superior
+    if (error.shouldRetry) {
+      throw error;
+    }
+
+    const errorMessage = `Error al generar proyecto NestJS: ${error.message}`;
+    logger.log(errorMessage, "ERROR");
+    logs.push(`ERROR: ${errorMessage}`);
+
+    // Retornar información del error incluyendo logs si están disponibles
+    // Si el error ya tiene logs (por ejemplo, de un error anterior), preservarlos
+    const errorWithLogs = new Error(errorMessage);
+    errorWithLogs.logs = error.logs || logs;
+    errorWithLogs.stdout = error.stdout || "";
+    errorWithLogs.stderr = error.stderr || error.message;
+    errorWithLogs.exitCode = error.exitCode;
+
+    throw errorWithLogs;
   }
+}
 
 // Función principal que maneja el bucle de repetición
 async function run(plantUMLCode, outputDir = null) {
   // CORRECCIÓN: El parámetro es 'plantUMLCode', no 'responseText'
-  const responseText = typeof plantUMLCode === 'string' ? plantUMLCode : (plantUMLCode.plantUMLCode || JSON.stringify(plantUMLCode));
-  
+  const responseText =
+    typeof plantUMLCode === "string"
+      ? plantUMLCode
+      : plantUMLCode.plantUMLCode || JSON.stringify(plantUMLCode);
+
   let maxRetries = 10; // Límite de reintentos para evitar bucles infinitos
   let retryCount = 0;
-  
+
   while (retryCount < maxRetries) {
     try {
       const result = await main(responseText, outputDir);
-      logger.log('Proceso completado exitosamente');
+      logger.log("Proceso completado exitosamente");
       return result;
     } catch (error) {
       if (error.shouldRetry && retryCount < maxRetries - 1) {
         retryCount++;
-        logger.log(`Reintentando el proceso (intento ${retryCount + 1}/${maxRetries})...`);
+        logger.log(
+          `Reintentando el proceso (intento ${retryCount + 1}/${maxRetries})...`,
+        );
         // Esperar un poco antes de reintentar
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         continue;
       } else {
         // Si no es un error de repetición o se alcanzó el límite, lanzar el error
         if (error.shouldRetry) {
-          logger.log('Se alcanzó el límite máximo de reintentos.', 'ERROR');
-          throw new Error('Se alcanzó el límite máximo de reintentos después de un error de Prisma.');
+          logger.log("Se alcanzó el límite máximo de reintentos.", "ERROR");
+          throw new Error(
+            "Se alcanzó el límite máximo de reintentos después de un error de Prisma.",
+          );
         }
         throw error;
       }
     }
   }
-  
-  throw new Error('Se alcanzó el límite máximo de reintentos');
+
+  throw new Error("Se alcanzó el límite máximo de reintentos");
 }
 
 // Exporta la función
 module.exports = {
-  run
+  run,
 };

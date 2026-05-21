@@ -1,6 +1,7 @@
 
 const { dialog } = require('electron');
-const geminiService = require('./service/gemini-service');
+// const geminiService = require('./service/gemini-service');
+const claudeService = require('./service/claude-service');
 const xmlParser = require('./service/xml-parse');
 const logger = require('./log/logger');
 const htmlDialog = require('./service/html-dialog');
@@ -77,7 +78,7 @@ module.exports = function (electronApp, menuState) {
             htmlDialog.showInfoDialog(
               electronApp.mainWindow.webContents,
               'Generando Diagrama UML',
-              'Procesando con Gemini AI...',
+              'Procesando con Claude AI...',
               'Por favor espera mientras se genera el diagrama PlantUML a partir de tu diagrama BPMN.\n\nEsto puede tardar unos segundos.\n\nNo cierres esta ventana.',
               [] // Se quita el botón 'OK' para que sea no interactivo
             ).catch(function(err) {
@@ -87,17 +88,17 @@ module.exports = function (electronApp, menuState) {
           }
           
           // Paso 3: Llamar a Gemini Service con los datos parseados
-          const geminiStartTime = Date.now();
-          return geminiService.run(parsedData).then(function(result) {
-            return {result, geminiStartTime};
+          const aiStartTime = Date.now();
+          return claudeService.run(parsedData).then(function(result) {
+            return {result, aiStartTime};
           });
         })
         .then(function(data) {
           // Manejar la respuesta que ahora es un objeto con {success, result, logs, metadata}
           const responseText = typeof data.result === 'string' ? data.result : (data.result.result || JSON.stringify(data.result));
           const logs = data.result.logs || [];
-          const geminiStartTime = ((Date.now() - data.geminiStartTime) / 1000).toFixed(2);
-          logs.push("SE DEMORÓ:", geminiStartTime);
+          const aiStartTime = ((Date.now() - data.aiStartTime) / 1000).toFixed(2);
+          logs.push("SE DEMORÓ:", aiStartTime);
 
           const metadata = data.result.metadata || {};
           
@@ -169,7 +170,7 @@ module.exports = function (electronApp, menuState) {
             name: error.name,
             originalError: error.originalError
           };
-          logger.log(`Error al ejecutar Gemini: ${error.message}`, 'ERROR');
+          logger.log(`Error al ejecutar Claude: ${error.message}`, 'ERROR');
           logger.log(`Detalles del error: ${JSON.stringify(errorDetails, null, 2)}`, 'ERROR');
           logger.log(`Archivo de log disponible en: ${logger.getLogPath()}`, 'INFO');
           
@@ -186,7 +187,7 @@ module.exports = function (electronApp, menuState) {
             htmlDialog.showErrorDialog(
               electronApp.mainWindow.webContents,
               'Error',
-              'Error al ejecutar Gemini',
+              'Error al ejecutar Claude',
               errorMessage,
               ['OK', 'Ver Log'],
               true  // closeExisting = true para cerrar el diálogo de progreso

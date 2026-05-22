@@ -1,5 +1,6 @@
 const logger = require("../log/logger");
 const path = require("path");
+const fs = require("fs");
 
 const CLAUDE_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
@@ -79,7 +80,12 @@ function validatePlantUML(text) {
     throw new Error("La respuesta de Claude no contiene @enduml.");
   }
 }
-async function callClaude({ systemPrompt, userPrompt, maxTokens = 8192, temperature = 0.2 }) {
+async function callClaude({
+  systemPrompt,
+  userPrompt,
+  maxTokens = 8192,
+  temperature = 0.2,
+}) {
   const { apiKey, model } = getClaudeConfig();
 
   const payload = {
@@ -115,9 +121,7 @@ async function callClaude({ systemPrompt, userPrompt, maxTokens = 8192, temperat
     }
 
     const providerMessage =
-      errorData?.error?.message ||
-      response.statusText ||
-      "Error desconocido";
+      errorData?.error?.message || response.statusText || "Error desconocido";
 
     throw new Error(`Error ${response.status}: ${providerMessage}`);
   }
@@ -134,39 +138,115 @@ async function run(dataFieldsString = null) {
     logger.log("Claude Service iniciado");
     logs.push("Claude Service iniciado");
 
-    const systemPrompt = `
-Act as a Systematic Derivation Engine based on the methodology described in "Systematic derivation of class diagrams from communication-oriented business process models" (Gonzalez et al., 2011).
+    let systemPrompt = `
+You are an expert Systematic Derivation Engine specialized in deriving UML Class Diagrams from communication-oriented BPMN message structures. Use the following authoritative rules exactly when producing the output. Do not improvise beyond these rules.
 
-Your task is to:
-1. Parse the provided BPMN 2.0 XML content.
-2. Extract message structures stored as JSON strings within <bpmn:documentation> tags associated with relevant BPMN elements.
-3. Identify the processing order of these messages based on sequence flow connections.
-4. Apply the derivation rules R1-R26 incrementally to build a UML Class Diagram.
-5. Generate a single, complete UML Class Diagram definition using PlantUML syntax.
+INPUT FORMAT (accepted):
+- You will receive a NORMALIZED JSON payload extracted from BPMN <bpmn:documentation> elements with this shape:
+  { type: 'normalized', payload: [ { name, rawName, description, children: [ { name, originalType, type, domain, extends, multiplicity, relation, raw } ] } ] }
+- Trust the normalized fields ('type', 'multiplicity', 'relation', 'extends') as hints. If a hint conflicts with structure, prefer explicit normalized hint.
 
-Important derivation behavior:
-- Create classes from root message structures when they are not marked as extensions.
-- Extend existing classes when the first Reference Field has "extends": true.
-- Add attributes from Data Field elements.
-- Create relationships from nested structures, aggregations, iterations and reference fields.
-- Use appropriate cardinalities.
-- Merge duplicated classes into a single class definition.
-- Define each relationship only once.
-- Ensure the final diagram represents connected domain entities when possible.
+HIGH-LEVEL TASK:
+1) Derive a conceptual UML Class Diagram (domain model) from the normalized payload.
+2) Merge duplicate/identical classes into one definition.
+3) Produce the final result as PlantUML only.
 
-Output rules:
-- Return only valid PlantUML.
-- Do not include explanations.
-- Do not include markdown.
-- Do not wrap the answer in code fences.
-- Start with @startuml.
-- Include: skinparam ClassAttributeIconStyle none
-- End with @enduml.
+NAMING RULES:
+- Class names: use PascalCase and singular form. Remove non-alphanumeric characters and convert spaces/underscores to PascalCase (e.g., 'ASIGNATURA OFRECIDA' -> 'AsignaturaOfrecida').
+- Attribute names: use snake_case or preserve original tokenization but avoid spaces (use underscores). Use the child 'name' as attribute name.
+- Role names: when adding a role label for an association, use the child's 'name' if meaningful.
+
+CLASS & ATTRIBUTE DERIVATION:
+- For each 'messageStructure' root (payload item) that is NOT marked as extension, create a class using 'messageStructure.name' (or an inferred non-primitive domain per heuristics below).
+- For each child of type 'Data Field', add an attribute to the containing class. Map 'domain' values to primitive types: text->String, date/datetime->Date, number/int->Integer, float/double/decimal->Decimal, boolean->Boolean. If domain is absent, default to 'String'.
+- If a child is marked 'identifier' or has 'identifier:true', mark that attribute conceptually as the identifier (no special PlantUML notation required beyond a comment if needed).
+
+RELATIONSHIP RULES (apply in this order):
+1. If child.type is 'Reference Field', create an association between the containing class (container) and the referenced class (domain). If referenced class does not yet exist, create it with no attributes initially.
+2. If child.type is 'Aggregation' or 'Iteration' with nested 'children', derive the nested structure as a separate class and create an aggregation relationship (open diamond) from container to nested class.
+3. If child.type is 'Structure' and is nested tightly (no identity independent of parent), prefer composition (filled diamond).
+
+CARDINALITY RULES:
+- If 'multiplicity' hint exists in the normalized child, use it literally (e.g., '0..*', '1', '*').
+- Otherwise infer: 'Iteration' or collection -> parent "1" -- "0..*" child; Reference fields -> parent "0..*" -- "1" referenced; Data fields -> attributes (no association).
+- Use minimum default '0' when optional information exists (e.g., non-identifier fields) and '1' for mandatory identifiers.
+
+MERGING & DEDUPLICATION:
+- If multiple messageStructures or children refer to the same domain name (case-insensitive after normalization), merge their attributes into a single class definition and deduplicate attributes by name.
+
+HERITANCE:
+- If the first child of a messageStructure is a 'Reference Field' with 'extends:true' (or 'extends' hint), then treat the messageStructure as an extension of the referenced class (do not create a new class; instead add attributes/relationships to the referenced class). Use generalization arrow ('<|--') with subclass on the left if explicit sub/super names are provided.
+
+OUTPUT & FORMAT RULES (MUST FOLLOW EXACTLY):
+- Output only valid PlantUML code. Start with '@startuml' and end with '@enduml'.
+- Include the line 'skinparam ClassAttributeIconStyle none' near the top.
+- Use 'class ClassName { ... }' blocks for each class; list attributes as 'attribute_name: Type'.
+- Use association notation for relationships: composition '*--', aggregation 'o--', association '--', and generalization ' <|-- '.
+- Always annotate associations with multiplicities in quotes on both ends, and include a role label after a colon when available: 'A "1" *-- "0..*" B : items'.
+- Do NOT include explanatory text, markdown, comments, or anything outside PlantUML.
+
+VALIDATION:
+- Ensure every class referenced in a relationship is defined exactly once.
+- Ensure relationships are not duplicated; merge equivalent relationships.
+
+ERROR HANDLING:
+- If the input is empty or malformed, return a minimal PlantUML diagram with a single class 'EmptyDiagram' and a comment-free minimal structure but still valid PlantUML.
+
+EXAMPLE (format only):
+@startuml
+skinparam ClassAttributeIconStyle none
+class Foo {\n  id: Integer\n}
+class Bar {\n  name: String\n}
+Foo "1" *-- "0..*" Bar : bars
+@enduml
+
+Now, given the normalized JSON payload that will be provided as the user prompt, generate the PlantUML following these rules.
 `.trim();
 
+    // Try to load a project-provided DDM rules file and append it verbatim to the system prompt
+    function loadDDMRules() {
+      const candidates = [
+        path.resolve(__dirname, "../DDM_Reglas_Completas.md"),
+        path.resolve(__dirname, "../../DDM_Reglas_Completas.md"),
+        path.resolve(__dirname, "../../docs/DDM_Reglas_Completas.md"),
+        path.resolve(__dirname, "../../menu/DDM_Reglas_Completas.md"),
+      ];
+
+      for (const p of candidates) {
+        try {
+          if (fs.existsSync(p)) {
+            const content = fs.readFileSync(p, { encoding: "utf8" });
+            return { path: p, content };
+          }
+        } catch (e) {
+          // ignore and try next
+        }
+      }
+
+      return null;
+    }
+
+    const ddm = loadDDMRules();
+    if (ddm) {
+      logger.log(
+        `DDM rules file encontrado en ${ddm.path}; anexando al sistema prompt.`,
+      );
+      logs.push(`DDM rules appended from ${ddm.path}`);
+      systemPrompt +=
+        "\n\nFULL_DDM_RULES_VERBATIM_START\n" +
+        ddm.content +
+        "\nFULL_DDM_RULES_VERBATIM_END";
+    } else {
+      logger.log(
+        "DDM_Reglas_Completas.md no encontrada; procediendo sin ella.",
+        "WARN",
+      );
+      logs.push("DDM_Reglas_Completas.md no encontrada");
+    }
+
     const userPrompt = dataFieldsString
-      ? `INPUT BPMN XML CONTENT:\n\n${dataFieldsString}`
-      : "INPUT BPMN XML CONTENT:\n\n[No se proporcionó contenido BPMN XML]";
+      ? `INPUT NORMALIZED MESSAGE STRUCTURES (JSON):\n\n${dataFieldsString}`
+      : "INPUT NORMALIZED MESSAGE STRUCTURES (JSON):\n\n[No se proporcionó contenido]";
 
     if (dataFieldsString) {
       logger.log(
@@ -191,7 +271,9 @@ Output rules:
     const plantUMLText = cleanPlantUML(rawText);
     validatePlantUML(plantUMLText);
 
-    logger.log(`Respuesta de Claude recibida: ${plantUMLText.length} caracteres`);
+    logger.log(
+      `Respuesta de Claude recibida: ${plantUMLText.length} caracteres`,
+    );
     logger.log(
       "Primeros 200 caracteres de la respuesta: " +
         plantUMLText.substring(0, 200),

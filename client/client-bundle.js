@@ -187,7 +187,8 @@
                     "bpmn:IntermediateThrowEvent",
                   ) ||
                     element.businessObject.$instanceOf("bpmn:SendTask") ||
-                    element.businessObject.$instanceOf("bpmn:ThrowEvent") ||
+                    (element.businessObject.$instanceOf("bpmn:ThrowEvent") &&
+                      !element.businessObject.$instanceOf("bpmn:EndEvent")) ||
                     element.businessObject.$instanceOf(
                       "bpmn:EscalationThrowEvent",
                     ))
@@ -1727,7 +1728,8 @@
                   "bpmn:IntermediateThrowEvent",
                 ) ||
                 element.businessObject.$instanceOf("bpmn:SendTask") ||
-                element.businessObject.$instanceOf("bpmn:ThrowEvent") ||
+                (element.businessObject.$instanceOf("bpmn:ThrowEvent") &&
+                  !element.businessObject.$instanceOf("bpmn:EndEvent")) ||
                 element.businessObject.$instanceOf("bpmn:EscalationThrowEvent")
               )
             ) {
